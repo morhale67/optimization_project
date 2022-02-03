@@ -1,0 +1,117 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage{ucs}
+\usepackage[a4paper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+\usepackage[utf8x]{inputenc}
+\usepackage[hebrew, english]{babel}
+\usepackage{culmus}
+\input{math_commands.tex}
+\usepackage{hyperref}
+\usepackage{amsfonts}
+\usepackage{amsmath,amssymb}
+\usepackage{url}
+\usepackage{derivative}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+
+% \usepackage[margin=0.5in]{geometry}
+\newcommand{\T}{\theta}
+
+
+\title{\foreignlanguage{english}{ADAM optimizer}}
+\author{Mor and Yona Coscas}
+
+\begin{document}
+\maketitle
+\section{Introduction}
+ADAM stands for ADAptive Moment estimation, which is commonly used to solve the optimization problem of updating deep neural network weights and biases, it solves dome withdraws of the more common Stochastic Gradient Descent optimization algorithm.\\
+The setting for a simple deep neural network optimization setup, is firstly a training dataset $D$ which are samples from a unknown function $f(x)$ , secondly a model $\hat{f}_{\theta}(x)$ with parameters $\theta$ that can be updated and lastly an objective function $L(\theta)$. \\
+The goal of the optimization is to minimize the objective function w.r.t the model parameters, for example, we can look at the $L_2$ objective function, and the objective function would be $\min \limits_{\theta} ||f(x) - \hat{f}_\theta (x)||^{2}_2$. $L(\theta)$ and a tuning parameter $\eta$ which is the learning rate, its role is to determines the step size at each iteration while moving toward a minimum w.r.t the gradients. \\
+The stochastic optimization process with vanilla stochastic gradient descent, $D$, $f(x)$, $\hat{f}_{\theta}(x)$ and $\eta$  goes as follows:
+\begin{enumerate} 
+    \item Randomly sample a batch $b$ of samples from the dataset $b \in D$.
+    \item Get the estimated function $\hat{f}_{\theta}(b)$, by running $b$ through the model.
+    \item Evaluate the objective function $L(\theta) = \frac{1}{n} \sum_{i=1}^{n} L_i(\theta)$ using $f(\theta)$ and $\hat{f}_{\theta}(b)$.
+    \item Update the parameters $theta$ as follows: $\theta:=\theta-\frac{\eta}{n}\sum_{i=1}^{n}\nabla L_i(\theta)$
+\end{enumerate}
+ADAM is an algorithm for first-order, gradient-based optimization for stochastic differentiable objective functions w.r.t their parameters.
+By first order, we mean that we need only to calculate the first order partial derivatives of the function w.r.t its parameters. This is the desired property, since calculating first-order derivatives is as efficient as evaluating the function itself, but second-order methods such as Newton's method require second-order partial derivatives which require more computation. It is a gradient based algorithm so it calculates the gradient direction of the objective function w.r.t its parameters, and updates them in the opposite direction of the gradients (we will elaborate on this point later on). Lastly, it is a stochastic algorithm, i.e., it does not require calculating the gradients for the whole dataset, but instead, it samples randomly from this dataset and updates the parameters based on this sample. The stochastic approach has been the main solution for deep learning models, over batch gradient descent although calculating the derivatives of the objective function over the whole dataset and updating the parameters results results in a less noisy update rule, as can be seen in this illustration.\\
+\begin{center}
+\includegraphics[width=5cm, height=5cm]{BGD.png}
+\end{center}
+A stochastic approach will result in noisy update rules, and will look something like that\\
+\begin{center}
+
+    \includegraphics[width=5cm, height=5cm]{SGD.jpg}
+\end{center}
+The reason for choosing SGD over BGD is the fact that calculating the exact gradients of the objective function of each and every sample over an over until the convergence of the optimization process is extremely time consuming.
+Considering working with large datasets (millions of data samples), using this method renders the optimization process almost unfeasible, thus the use of a stochastic approach is desired.
+
+\section{Problem definition}
+
+The most general formalism for optimization in supervised learning is as follows, let us denote $L(\theta)$ to be a noisy objective function, since it is a stochastic scalar function, and let it be differentiable w.r.t the parameters $\theta$. 
+We want to find a mapping function $\hat{f}_\theta (x)$ that minimizes the objective function over all training samples:
+$\min \limits_{\theta} \frac{1}{N}\sum_{i=1}^{N} L(y^i, \hat{f}_\theta (x^i))$. $L(\theta)$ 
+, since it is a procedural optimization process that continues until convergence, we want to minimize the expected value of this function $\mathbf{E}[L_i(\theta)]$, with $L_1(\theta), ...L_T(\theta)$ being the realization of the function at subsequent timestamps 1,...,T.\\
+Let $g=\nabla_\theta L_t(\theta)$ be the vector of partial derivatives of $f_t$, w.r.t $\theta$ evaluated at timestamp t. For the algorithm we will use 
+\begin{equation*}
+    m_t=\beta_1m_{t-1}+(1-\beta_1)g_t
+\end{equation*}
+which is the exponential moving average of the first moment of the gradient (mean) weighted with the parameter $\beta_1\in[0,1)$ and 
+\begin{equation*}
+    v_t=\beta_2v_{t-1}+(1-\beta_2)g^2_t
+\end{equation*}
+being the weighted average of the second moment of the gradient (the uncentered variance) with $\beta_2\in[0,1)$. $\beta_1$ and $\beta_2$ control the exponential decay rates of these moving
+averages.
+Both $m_t$ and $v_t$ are vectors initialized to zeros, which make the moments estimates to be biased towards zeros especially when the $\beta$s become closer to 1, so we need to fix them to be bias corrected, the resulting estimates are 
+\begin{equation*}
+    \begin{split}
+    \hat{m}_t=\frac{m_t}{1-\beta_1^t} \\ 
+    \hat{v}_t=\frac{v_t}{1-\beta_2^t}
+    \end{split}
+\end{equation*}
+
+then we can use those moment estimates to update update the parameter $\theta$:
+\begin{align*}
+    \theta_{t+1}=\theta_t - \frac{\eta}{\sqrt{\hat{v_t}}+\eps}\hat{m_t}
+\end{align*}
+$\eta$ being the learning rate and $\eps$ is required to prevent numerical errors with very small standard deviations.
+A pseudo-code of ADAM can be seen as follows:\\
+\begin{center}
+ \includegraphics[scale=0.4]{pseudocode.png}
+\end{center}
+
+\section{Comparison to other optimizers and ADAM properties}
+\textbf{Batch Gradient Descent} As mentioned in section 1, BGD passes through the whole dataset in batches, and store all the gradients in its path, lastly it performs the update step with fixed learning rate $\theta:=\theta-\eta \nabla_\theta L(\theta)$. \\
+\textbf{Stochastic Gradient Descent} As we mentioned above vanilla SGD, is just apllying to each parameter the gradient of the error, with some learning rate, $\theta:=\theta-\frac{\eta}{n}\sum_{i=1}^{n}\nabla_\theta L_i(\theta;x_i,y_i)$. It is worth mentioning that almost all stochastic approach (including ADAM) have a notable quality that make them perform better on non-convex problems, the stochasity of the formulation makes it easy for them to stay away from local minimas, this also make them possibly miss the global minima or not converge exactly to it, especially in the case of SGD with a fixed learning rate. In the vanilla setup the error of convergence to a global minima in a covex setting of SGD is in the order of the learning rate, but if we add to vanilla SGD a learning rate schedule as suggested in \cite{darken1992learning} we can achieve the same optimal solution as in BGD.\\
+\textbf{Mini batch Gradient Descent} is the combination of BGD and SGD, we do itterate over the all dataset in random batches, but update the parameters each batch, thus acheiving convergence much faster and still have the property of stochasity.
+The key withdraw of all variants of gradient descent comparimg to ADAM (or other adaptive methods) is they use a learning rate which the user needs to wisely choose and is the same for all parameters, another key chalenge for those algorithms is saddle points, they do not perform well in smooth plateaus, which are common in deep learning \cite{dauphin2014identifying}.\\
+As we mentioned earlier ADAM stands for adaptive moment estimation, the term adaptive refers to the property that ADAM calculates adaptive learning rates for each parameter, in contrast to SGD, in which the learning rate is fixed to all the parameters. This property is similar to other adaptive methods, such as Adadelta, Adagrad and RMSprop.\\
+\textbf{Adagrad} is a gradient-based optimization algorithm that adapts the learning rate to the parameters, performing smaller updates for parameters associated with frequently occurring features, and larger updates (i.e. high learning rates) for parameters associated with infrequent features.\\
+Let's denote $g_{t, i} = \nabla_\theta J( \theta_{t, i} )$, which is the partial derivative of the objective function w.r.t its parameters $\theta_i$, we calculate a diagonal matrix $G_t$, where each element is $G=\sum_{i=1}^{N} g_i g_i^T$, where N is the number of itterations, thus the update rule is $\theta_{t+1, i} = \theta_{t, i} - \dfrac{\eta}{\sqrt{G_{t, ii}} + \epsilon} \cdot g_{t, i}$
+This method is well suited for sparse data because of its adaptivity to occurence of features.
+\\
+\textbf{Adadelta} 
+\\
+\textbf{RMSprop} was also introduced due to the shortcomings of Adagrad in regard to its quick decreasing of learning rate, it calculates the running average of past squared gradients $E[g^2]_t = \gamma E[g^2]_{t-1} + (1 - \gamma) g^2_t$, and the update rule is $\theta_{t+1} = \theta_{t} - \dfrac{\eta}{\sqrt{E[g^2]_t} + \epsilon} g_{t}$, we can see it is similar to the variance term in ADAM except the running average in RMSprop is only over the previous average of square gradients and ADAM is exponentially moving.
+The other property of ADAM is moment estimation, ADAM calculates past gradient averages, similarly to momentum methods and in fact can be seen as a combination of a momentum method that does not calculate the variance and RMSprop that do not calculate the average, and lacks the term regarding the first moment averaging.\\
+\textbf{AMSGrad} In \cite{reddi2019convergence} the authors argue that ADAM do not converge well to an optimal solution for convex problems, due to the exponential moving avergae of the gradients, which result in forgettness of long-term memory of past gradients. Therefor suggest an alternative AMSGrad which is a corrected version of ADAM, which replaces $\hat{v}_t$ to be $\hat{v}_t = \max(\hat{v}_{t-1}, v_t)$, all in all the authors get a similar algorithm to ADAM, but found that the de-biasing can be avoided, thus getting:
+\begin{align} 
+    \begin{split} 
+    m_t &= \beta_1 m_{t-1} + (1 - \beta_1) g_t \\ 
+    v_t &= \beta_2 v_{t-1} + (1 - \beta_2) g_t^2\\ 
+    \hat{v}_t &= \text{max}(\hat{v}_{t-1}, v_t) \\ 
+    \theta_{t+1} &= \theta_{t} - \dfrac{\eta}{\sqrt{\hat{v}_t} + \epsilon} m_t 
+    \end{split} 
+\end{align}
+    
+where $v_t$ is the regular moving average for the variance
+this fixes the forgetness of ADAM and was shown to perform better on convex problems than ADAM, and we get an update rule similar to ADAM but never get an increasing step-size (which is to blame for its inability to converge).\\
+Where ADAM shines is actually in non-convex error surface such as deep learning models (where it is widley used), and in \cite{chen2018convergence}, the authors even provided an upper bound for convergence rate under some mild conditions, but the authors showed that in some cases of deep learning problems AMSgrad outperforms ADAM.
+\section{Miscellanea}
+In \cite{vaswani2019painless}, the authors argue that althogh ADAM provide extremely good results on deep learning optimization i.e. trying to optimize a loss surface, it provide extremey poor results on other optimization problems.
+The key difference between deep learning model optimization, is the shear number of parameters to optimize (several millions), and that derivatives of the error function are ususally ill conditioned \cite{li2017visualizing}, thus the error surface has many saddle points, thus from one hand convex optimization is not feasible in this cases, and in the other hand second order optimization is not feasible dus to the high dimensionality of parameters, which will require $O(n^2)$ in memory. This is where ADAM shines, it doesn't require more than calculating the gradients themselves, like SGD, but its momentum allows it to overcome local minima and saddle points, with its ability to properly tune the learning rate to different parameters.
+\bibliography{proj}
+\bibliographystyle{plain}
+\end{document}
+

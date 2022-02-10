@@ -92,6 +92,8 @@ Let's denote $g_{t, i} = \nabla_\theta J( \theta_{t, i} )$, which is the partial
 This method is well suited for sparse data because of its adaptivity to occurence of features.
 \\
 \textbf{Adadelta} 
+Adadelta extens Adagrad, the main problem with Adagrad is the fact that it stores all past gradients in the G matrix, resulting in a monotonic decrease of the learning rate, which is not a suitable result, in non-convex problems. Adadelta, looks only on a running window of the accumulated gradients, i.e. a delta of the gradients.
+In this condiguration $G_t$ stores in its diagonal elements the current gradients, and a decaying average of past gradients (instead of the sum of all past gradients), i.e. $ E[g^2]_t = \gamma E[g^2]_{t-1} + (1 - \gamma) g^2_t$, where $\gamma$ is a usually around 0.9, now we get an update rule: $\Delta \theta_t = - \dfrac{\eta}{\sqrt{E[g^2]_t + \epsilon}} g_{t}$. Adadelta is a momentum based optimizer
 \\
 \textbf{RMSprop} was also introduced due to the shortcomings of Adagrad in regard to its quick decreasing of learning rate, it calculates the running average of past squared gradients $E[g^2]_t = \gamma E[g^2]_{t-1} + (1 - \gamma) g^2_t$, and the update rule is $\theta_{t+1} = \theta_{t} - \dfrac{\eta}{\sqrt{E[g^2]_t} + \epsilon} g_{t}$, we can see it is similar to the variance term in ADAM except the running average in RMSprop is only over the previous average of square gradients and ADAM is exponentially moving.
 The other property of ADAM is moment estimation, ADAM calculates past gradient averages, similarly to momentum methods and in fact can be seen as a combination of a momentum method that does not calculate the variance and RMSprop that do not calculate the average, and lacks the term regarding the first moment averaging.\\
@@ -107,10 +109,27 @@ The other property of ADAM is moment estimation, ADAM calculates past gradient a
     
 where $v_t$ is the regular moving average for the variance
 this fixes the forgetness of ADAM and was shown to perform better on convex problems than ADAM, and we get an update rule similar to ADAM but never get an increasing step-size (which is to blame for its inability to converge).\\
-Where ADAM shines is actually in non-convex error surface such as deep learning models (where it is widley used), and in \cite{chen2018convergence}, the authors even provided an upper bound for convergence rate under some mild conditions, but the authors showed that in some cases of deep learning problems AMSgrad outperforms ADAM.
+Where ADAM shines is actually in non-convex error surface such as deep learning models (where it is widely used), and in \cite{chen2018convergence}, the authors even provided an upper bound for convergence rate under some mild conditions, but the authors showed that in some cases of deep learning problems AMSgrad outperforms ADAM.
+We evaluated 4 optimizers in different settings using our code, and a sample problem. We designed a convolutional neural network with 2 convolution layers and two fully connected layers with relu as the non-linear function, and trained it to recognize hand written digits from 0 to 9 (known as the MNIST dataset). We compared ADAM, SGD, RMSprop and Adadelta, with different hyperparameters.\\
+In this figure we can see the results with batch size of 128 and learning rate of 0.001 (all lines were smoothed for better visual evaluation):\\
+\begin{center}
+    \includegraphics[width=15cm, height=5cm]{comparison_lr=0.001_bs=128.png}
+\end{center}
+the pink line is Adadelta, and has a poor convergance, as do SGD in orange, while RMSprop (in bright blu) provide a very good convergance and is very close to the results from ADAM (in darker blue), but still ADAM outperform them all.\\
+It is also seen in the results on the test set, where ADAm outperform all other optimizer in average:
+\begin{center}
+    \includegraphics[width=15cm, height=5cm]{test_lr=0.001_batch size=128.png}
+\end{center}
+
 \section{Miscellanea}
-In \cite{vaswani2019painless}, the authors argue that althogh ADAM provide extremely good results on deep learning optimization i.e. trying to optimize a loss surface, it provide extremey poor results on other optimization problems.
-The key difference between deep learning model optimization, is the shear number of parameters to optimize (several millions), and that derivatives of the error function are ususally ill conditioned \cite{li2017visualizing}, thus the error surface has many saddle points, thus from one hand convex optimization is not feasible in this cases, and in the other hand second order optimization is not feasible dus to the high dimensionality of parameters, which will require $O(n^2)$ in memory. This is where ADAM shines, it doesn't require more than calculating the gradients themselves, like SGD, but its momentum allows it to overcome local minima and saddle points, with its ability to properly tune the learning rate to different parameters.
+In \cite{vaswani2019painless}, the authors argue that although ADAM provides extremely good results on deep learning optimization i.e. trying to optimize a loss surface, it provides very poor results on other optimization problems.
+The key difference between deep learning model optimization is the sheer number of parameters to optimize (several million), and that derivatives of the error function are usually ill-conditioned \cite{li2017visualizing}, thus the error surface has many saddle points, resulting from one hand convex optimization is not feasible in this cases, and in the other hand second order optimization is not feasible dus to the high dimensionality of parameters, which will require $O(n^2)$ in memory. This is where ADAM shines, it doesn't require more than calculating the gradients themselves, like SGD, but its momentum allows it to overcome local minima and saddle points, with its ability to properly tune the learning rate to different parameters.
+in this fidure we can look at one loss surface from ResNet architecture:
+\begin{center}
+
+    \includegraphics[width=5cm, height=5cm]{resnet56_noshort_small.jpg}
+\end{center}
+we can see that it is a non convex and hard optimization problem, consisting of many local minima, but it has a very distinct global minima.
 \bibliography{proj}
 \bibliographystyle{plain}
 \end{document}

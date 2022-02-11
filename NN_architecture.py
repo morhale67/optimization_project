@@ -23,9 +23,11 @@ import torch
 class Net(nn.Module):
     def __init__(self, channels=3, im_size=28, num_classes=10):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(channels, 10, kernel_size=5)
+        self.conv1 = nn.Conv2d(channels, 128, kernel_size=5)
+        self.bn1 = nn.BatchNorm2d(128)
         self.conv1_drop = nn.Dropout2d(0.5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv2 = nn.Conv2d(128, 64, kernel_size=5)
+        self.bn2 = nn.BatchNorm2d(64)
         self.conv2_drop = nn.Dropout2d(0.5)
         self.convs=[]
         self.drops=[]
@@ -34,16 +36,15 @@ class Net(nn.Module):
         #     self.drops.append(nn.Dropout2d(0.7))
         self.convs = nn.ModuleList(self.convs)
         self.drops = nn.ModuleList(self.drops)
-        self.FC_size = int(20*(im_size/4-3)**2)
+        self.FC_size = int(64*(im_size/4-3)**2)
         self.fc1 = nn.Linear(self.FC_size, 50)
         self.fc2 = nn.Linear(50, num_classes)
         
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        
-        # for i in range(6):
-        #     x = F.relu(self.drops[i](self.convs[i](x)))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        x = F.relu(self.conv1_drop(self.conv1(x)))
+        x = F.max_pool2d(self.bn1(x), 2)
+        x = F.relu(self.conv2_drop(self.conv2(x)))
+        x = F.max_pool2d(self.bn2(x), 2)
         x = x.view(-1, self.FC_size)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
